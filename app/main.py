@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from app.config import settings
 
 app = FastAPI()
@@ -21,7 +22,7 @@ def webhook(
     challenge:str = Query(alias="hub.challenge")):
 
     if(mode == "subscribe" and token == settings.meta_verify_token):
-        return challenge
+        return PlainTextResponse(challenge)
     raise HTTPException(status_code=403, detail="Sem permissão")
 
 @app.post("/webhook")
