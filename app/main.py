@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from app.config import settings
 
 app = FastAPI()
@@ -23,3 +23,10 @@ def webhook(
     if(mode == "subscribe" and token == settings.meta_verify_token):
         return challenge
     raise HTTPException(status_code=403, detail="Sem permissão")
+
+@app.post("/webhook")
+async def receber_mensagem(request: Request):
+    corpo = await request.json()
+
+    print(corpo)
+    return {"status":"ok"}
