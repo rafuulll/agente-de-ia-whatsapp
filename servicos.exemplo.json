@@ -1,0 +1,20 @@
+[
+  {
+    "id": "design-simples",
+    "nome": "Design de sobrancelhas (exemplo)",
+    "duracao_min": 30,
+    "preco": 40
+  },
+  {
+    "id": "volume-exemplo",
+    "nome": "Volume de cílios (exemplo)",
+    "duracao_min": 120,
+    "preco": 100
+  },
+  {
+    "id": "remocao-exemplo",
+    "nome": "Remoção de cílios (exemplo)",
+    "duracao_min": 45,
+    "preco": 30
+  }
+]
