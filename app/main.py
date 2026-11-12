@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from app.config import settings
+from app.models import Servico
+from app.servicos import carregar_servicos
 
 app = FastAPI()
 
@@ -8,12 +10,9 @@ app = FastAPI()
 def health():
     return {"status":"ok"}
 
-@app.get("/servicos")
+@app.get("/servicos", response_model=list[Servico])
 def servicos():
-    return [
-    {"nome":"Extensão de cílios", "duracao_min": 90, "preco": 150},
-    {"nome": "Design de sobrancelhas", "duracao_min": 40, "preco": 80},
-    {"nome": "Brow lamination", "duracao_min": 60, "preco": 120}]
+    return carregar_servicos()
 
 @app.get("/webhook")
 def webhook(
