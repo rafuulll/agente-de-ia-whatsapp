@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     meta_verify_token: str
     gemini_api_key: str
     gemini_model: str = "gemini-3.5-flash-lite"
+    salao_nome: str = "Salão Exemplo"
+    profissional_nome: str = "Profissional Exemplo"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
