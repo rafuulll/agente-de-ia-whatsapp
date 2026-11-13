@@ -59,3 +59,50 @@ Remetente (número): corpo["entry"][0]["changes"][0]["value"]["messages"][0]["fr
 
 3. Por que o POST responde 200 logo, antes de processar?
 Se a Meta não recebe o 200 rápido, ela entende que falhou e reenvia a mesma mensagem. Responder logo evita isso, e o processamento (agenda, resposta) continua em seguida. A consequência é que a mesma mensagem pode chegar mais de uma vez, então o servidor vai precisar ser idempotente (não agendar duas vezes). Isso está previsto para a V3.
+
+
+# 12/11/2026
+
+## 1. O que fiz
+Fechei a V0 e fiz a V1: os serviços agora vêm de um arquivo e são validados com Pydantic.
+
+V0 - O código do webhook foi para a main pelo PR #1 e criei a tag v0, que confirmei no GitHub com git ls-remote --tags origin.
+Servico (app/models.py) - Classe Pydantic com id (int), nome (str), duracao_min (int) e preco (float).
+carregar_servicos() (app/servicos.py) - Lê o servicos.json e, se ele não existir, usa o servicos.exemplo.json. Cada item vira um Servico(**item), então o Pydantic valida na leitura.
+GET /servicos - Passou a usar o carregar_servicos() e declara response_model=list[Servico].
+servicos.json real - Preenchi com os 24 serviços dela. Ele está no .gitignore e não sobe para o GitHub.
+
+Testes novos (agora são 6 passando):
+test_servicos - Troca a função carregar_servicos por uma com 2 serviços falsos (monkeypatch) e confere status 200, 2 itens e o nome do primeiro.
+test_carregar_servicos_dado_invalido - Cria uma pasta temporária (tmp_path) com um servicos.json sem o campo preco, troca a RAIZ por ela e espera ValidationError (pytest.raises).
+
+Também escrevi no DECISIONS.md a 003 (V0 fechada sem resposta pela API e sem proteção contra mensagem duplicada) e a 004 (validação na leitura do arquivo, id int e testes com dados falsos), e criei um modelo de pull request (.github/pull_request_template.md).
+
+## 2. Por que assim
+A classe Servico serve para manter um padrão: sem ela, o serviço seria qualquer dicionário solto. Com ela, todo serviço precisa ter id, nome, duracao_min e preco.
+O Pydantic valida na leitura do arquivo para o erro aparecer na hora, e não depois, quando o agente já estiver respondendo uma cliente.
+O id é int para não ficar parecido com o nome.
+O teste da rota não usa o servicos.json real porque ele não está no GitHub e muda quando o catálogo muda. Trocando a função leitora por uma com dados falsos, o teste dá o mesmo resultado em qualquer máquina e só falha se a rota quebrar.
+O monkeypatch troca a RAIZ (a pasta) e não o arquivo, porque o leitor monta o caminho juntando a pasta com o nome do arquivo, e só a pasta é uma variável que dá para trocar.
+
+## 3. O que errei
+- Colei do chat aspas curvas no código e deu SyntaxError. No código só funcionam aspas retas.
+- Escrevi responde_model em vez de response_model.
+- Deixei os ids como texto no JSON de exemplo, mas o modelo pedia int. Decidi deixar tudo int.
+- Esqueci imports no arquivo de testes (json, pytest e servicos), o que daria NameError.
+- Achei que o Pydantic só devolvia os itens que batiam com a classe. Na verdade ele valida cada item: campo faltando ou tipo impossível dá ValidationError, e só campos a mais são ignorados.
+- Achei que o monkeypatch trocava arquivos. Ele troca funções e variáveis, só durante o teste.
+
+## 4. O que ainda não entendo bem
+monkeypatch: entendi o que faz, mas preciso ver mais exemplos para explicar sem consultar. O mesmo vale para o ** (desempacotar o dicionário) no Servico(**item).
+
+## 5. Respostas das três perguntas de recuperação
+
+1. O que o Pydantic faz quando um campo chega com o tipo errado?
+Ele tenta converter para o tipo declarado. Se der, segue (preco "40" vira 40.0). Se não der (preco "abc"), levanta ValidationError e o dado não passa.
+
+2. Por que o teste de /servicos não pode depender do servicos.json real?
+Porque o arquivo não está no repositório do GitHub e muda cada vez que alteramos ele. Então troco a função carregar_servicos por uma com dois serviços falsos usando monkeypatch, e o teste dá o mesmo resultado em todas as máquinas e só falha se a rota falhar.
+
+3. Se a Meta reenviar a mesma mensagem, o que o servidor faz e o que falta?
+A Meta reenvia o webhook se não receber 200 rápido ou se receber erro, então o servidor deve responder 200 rápido para ela não reenviar a mensagem. Hoje cada POST é tratado como uma mensagem nova, portanto o que falta é a idempotência: guardar o id de cada mensagem e, caso a Meta reenvie, identificar que já foi processada e não processar de novo, para evitar mensagens duplicadas.
