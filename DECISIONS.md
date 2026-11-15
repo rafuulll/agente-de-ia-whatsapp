@@ -76,3 +76,19 @@ Decisão: opção B. O modelo `Servico` (`id` int, `nome` str, `duracao_min` int
 Por quê: se o arquivo estiver errado (campo faltando ou tipo trocado), o erro aparece na hora de ler, e não depois, quando o agente já estiver respondendo uma cliente. O `id` ficou int para não parecer igual ao nome.
 
 Consequência: um JSON inválido derruba a leitura com `ValidationError`. Os testes usam dados falsos (`monkeypatch` na rota e `tmp_path` no leitor), então não dependem do arquivo real dela e passam em qualquer máquina. O erro ainda não diz qual arquivo falhou, o que fica no backlog. O preço está como float; se precisar de cálculo financeiro preciso, avaliar Decimal.
+
+## 006. Memória da conversa em SQLite
+Data: 15/11/2026
+
+Contexto: o Gemini não guarda nada entre uma chamada e outra. Hoje o `responder(texto)` recebe só a mensagem atual, então a cliente diz "quero cílios", depois pergunta "quanto custa?" e o modelo não sabe do que se trata. A memória precisa ficar no nosso sistema, e ela tem de sobreviver a um reinício do servidor.
+
+Opções:
+- A: guardar as mensagens numa lista na memória do programa.
+- B: guardar num banco SQLite, que vive num único arquivo.
+- C: usar desde já um Postgres.
+
+Decisão: opção B. O módulo `app/memoria.py` tem três funções que recebem o caminho do arquivo do banco: `iniciar_banco` cria a tabela `mensagens` (id, numero, papel, texto), `salvar_mensagem` grava uma linha e `buscar_historico` devolve as últimas 10 mensagens de um número, da mais antiga para a mais nova. Os valores entram nos comandos com `?`, nunca montados em texto, para evitar SQL injection por mensagem de WhatsApp. O arquivo `*.db` está no `.gitignore`.
+
+Por quê: a lista em memória (A) some quando o uvicorn reinicia e não permite consultar por número. O Postgres (C) exige instalar e manter um servidor, o que é exagero para uma profissional e poucas conversas. O SQLite não precisa de servidor, já vem no Python (`sqlite3`) e guarda tudo num arquivo. O limite de 10 mensagens evita gastar cota, deixar a resposta lenta e estourar o limite de contexto do modelo; para agendamento, as últimas mensagens bastam. A ordem da mais antiga para a mais nova existe porque o modelo lê a conversa de cima para baixo: o banco busca com `ORDER BY id DESC LIMIT ?` (as mais novas) e a função inverte a lista.
+
+Consequência: as funções recebem o caminho do banco, então os testes usam um banco temporário (`tmp_path`) e não tocam nos dados reais. O SQLite aceita muitas leituras, mas só uma gravação por vez, o que serve para este piloto e deixa de servir com muitos acessos simultâneos; o plano prevê trocar por Postgres na V7. Falta ligar a memória ao agente e ao webhook (V1, segunda 16/11) e definir onde fica o arquivo real do banco. A proteção contra mensagem duplicada da Meta (guardar o id de cada mensagem) continua no backlog; o banco já dá o lugar para isso.
