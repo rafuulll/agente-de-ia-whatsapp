@@ -1,0 +1,5 @@
+- Endereço: Rua Exemplo, 123, Centro, Cidade Exemplo.
+- Horário de atendimento: terça a sexta, das 9h às 17h.
+- Cancelamento: avisar com pelo menos 24 horas de antecedência. Cancelamentos fora desse prazo têm taxa de R$ 20.
+- Atraso: após 15 minutos de atraso, o horário pode ser remarcado.
+- Pagamento: dinheiro, Pix e cartão.
