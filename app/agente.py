@@ -20,12 +20,21 @@ def montar_prompt() -> str:
         informacoes=carregar_informacoes(),
     )
 
+def montar_conteudos(historico: list, texto: str) -> list:
+    traducao = {"cliente": "user", "agente": "model"}
+    conteudos = []
+    for papel, mensagem in historico:
+        conteudos.append({"role": traducao[papel], "parts": [{"text": mensagem}]})
+    conteudos.append({"role": "user", "parts": [{"text": texto}]})
+    return conteudos
 
-def responder(texto_da_cliente: str) -> str:
+def responder(texto_da_cliente: str, historico=None) -> str:
+    if historico is None:
+        historico = []
     cliente = genai.Client(api_key=settings.gemini_api_key)
     resposta = cliente.models.generate_content(
         model=settings.gemini_model,
-        contents=texto_da_cliente,
+        contents=montar_conteudos(historico, texto_da_cliente),
         config=types.GenerateContentConfig(system_instruction=montar_prompt()),
     )
     return resposta.text

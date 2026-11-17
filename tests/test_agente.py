@@ -26,3 +26,19 @@ class ClienteFalso:
 def test_responder_devolve_o_texto_do_modelo(monkeypatch):
     monkeypatch.setattr(agente.genai, "Client", ClienteFalso)
     assert agente.responder("oi") == "resposta de mentira"
+
+def test_montar_conteudos_com_historico():
+    historico = [("cliente", "quero cílios"), ("agente", "temos fio a fio")]
+    conteudos = agente.montar_conteudos(historico, "quanto custa?")
+    assert conteudos == [
+        {"role": "user", "parts": [{"text": "quero cílios"}]},
+        {"role": "model", "parts": [{"text": "temos fio a fio"}]},
+        {"role": "user", "parts": [{"text": "quanto custa?"}]},
+    ]
+
+def test_montar_conteudo_sem_historico():
+    historico = []
+    conteudos = agente.montar_conteudos(historico, "quanto custa?")
+    assert conteudos == [
+        {"role": "user", "parts": [{"text": "quanto custa?"}]}
+    ]
