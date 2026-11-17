@@ -5,8 +5,10 @@ from app.config import settings
 from app.models import Servico
 from app.servicos import carregar_servicos
 from app.whatsapp import enviar_mensagem, extrair_mensagem
+from app.memoria import buscar_historico, iniciar_banco, salvar_mensagem
 
 app = FastAPI()
+CAMINHO_BANCO = "memoria.db"
 
 @app.get("/health")
 def health():
@@ -35,10 +37,15 @@ async def receber_mensagem(request: Request):
         return {"status": "ok"}
 
     numero, texto = resultado
+    iniciar_banco(CAMINHO_BANCO)
+    historico = buscar_historico(CAMINHO_BANCO, numero)
     try:
-        resposta = responder(texto)
+        resposta = responder(texto, historico)
+        salvar_mensagem(CAMINHO_BANCO, numero, "cliente", texto)
+        salvar_mensagem(CAMINHO_BANCO, numero, "agente", resposta)
         enviar_mensagem(numero, resposta)
     except Exception as erro:
         print("Erro ao atender a mensagem:", erro)
 
     return {"status": "ok"}
+

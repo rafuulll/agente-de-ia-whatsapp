@@ -31,15 +31,16 @@ def test_post_webhook():
     assert response.status_code == 200
     assert response.json() == {"status":"ok"}
 
-def test_post_mensagem_de_texto_chama_o_agente(monkeypatch):
+def test_post_mensagem_de_texto_chama_o_agente(monkeypatch, tmp_path):
     chamadas = []
 
-    def responder_falso(texto):
+    def responder_falso(texto, historico):
         chamadas.append(texto)
         return "resposta falsa"
 
     enviadas = []
     monkeypatch.setattr("app.main.responder", responder_falso)
+    monkeypatch.setattr("app.main.CAMINHO_BANCO", str(tmp_path / "teste.db"))
     monkeypatch.setattr(
         "app.main.enviar_mensagem", lambda numero, texto: enviadas.append((numero, texto))
     )
@@ -67,3 +68,30 @@ def test_post_evento_de_status_nao_chama_o_agente(monkeypatch):
 
     assert response.status_code == 200
     assert chamadas == []
+
+def test_segunda_mensagem_recebe_o_historico_da_primeira(monkeypatch, tmp_path):
+    historicos = []
+
+    def responder_falso(texto, historico):
+        historicos.append(historico)
+        return "resposta falsa"
+
+    monkeypatch.setattr("app.main.responder", responder_falso)
+    monkeypatch.setattr("app.main.enviar_mensagem", lambda numero, texto: None)
+    monkeypatch.setattr("app.main.CAMINHO_BANCO", str(tmp_path / "teste.db"))
+
+    def corpo(texto):
+        corpo = {
+        "entry": [{"changes": [{"value": {"messages": [{
+            "from": "5515999990000",
+            "type": "text",
+            "text": {"body": texto},
+        }]}}]}]
+        }
+        return corpo
+
+    client.post("/webhook", json=corpo("Oi"))
+    client.post("/webhook", json=corpo("Quanto custa?"))
+
+    assert historicos[0] == []
+    assert historicos[1] == [("cliente", "Oi"), ("agente", "resposta falsa")]
